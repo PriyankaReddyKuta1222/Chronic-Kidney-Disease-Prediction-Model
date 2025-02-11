@@ -1,0 +1,489 @@
+---
+title: "Project STATS"
+output:
+  word_document: default
+  pdf_document: default
+date: "2024-04-27"
+---
+
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
+```
+
+```{r}
+data <- read.csv ("C:\\Users\\Dr Lavanya\\OneDrive\\Desktop\\Lavanya\\assignment\\applied stats\\project\\kidney_disease.csv")
+View(data)
+data= subset(data, select = -c(X))
+data
+```
+
+#To examine the dimensions and the structure of the data
+```{r}
+#To examine the dimensions and the structure of the data
+dim (data)
+
+str (data)
+```
+```{r}
+#Checking for null values in the entire data frame
+if (any (is.na(data))) {
+  print ("There are NA values in the data frame")
+} else {
+  print ("There are no NA values in the data frame")
+}
+```
+
+```{r}
+#Checking for null values
+total_na <- sum (is.na (data))
+total_na
+```
+
+```{r}
+any (duplicated (data))
+```
+
+```{r}
+
+####################################################### UPDATED CODE ##################################################################
+na_count_by_column <- sapply(data, function(x) sum (is.na(x)))
+na_count_by_column
+
+
+#Imputing the missing values in numerical data with median
+# Assuming 'data' is your dataframe
+data$Blood.Pressure[is.na(data$Blood.Pressure)] <- median(data$Blood.Pressure, na.rm = TRUE) 
+data$Serum.creatinine[is.na(data$Serum.creatinine)] <- median(data$Serum.creatinine, na.rm = TRUE)
+data$Blood.urea[is.na(data$Blood.urea)] <- median(data$Blood.urea, na.rm = TRUE)  # For numerical data
+data$Albumin[is.na(data$Albumin)] <- median(data$Albumin, na.rm = TRUE)  # For numerical data
+data$Sugar[is.na(data$Sugar)] <- median(data$Sugar, na.rm = TRUE)  # For numerical data
+data$Specific.Gravity[is.na(data$Specific.Gravity)] <- median(data$Specific.Gravity, na.rm = TRUE) # For numerical data
+data$Blood.glucose.random[is.na(data$Blood.glucose.random)] <- median(data$Blood.glucose.random, na.rm = TRUE)  # For numerical data
+data$Sodium[is.na(data$Sodium)] <- median(data$Sodium, na.rm = TRUE)  # For numerical data
+data$Potassium[is.na(data$Potassium)] <- median(data$Potassium, na.rm = TRUE)  # For numerical data
+data$Hemoglobin[is.na(data$Hemoglobin)] <- median(data$Hemoglobin, na.rm = TRUE)  # For numerical data
+data$Packed.cell.volume[is.na(data$Packed.cell.volume)] <- median(data$Packed.cell.volume, na.rm = TRUE)
+data$White.blood.cell.count[is.na(data$White.blood.cell.count)] <- median(data$White.blood.cell.count, na.rm = TRUE)
+data$Red.blood.cell.count[is.na(data$Red.blood.cell.count)] <- median(data$Red.blood.cell.count, na.rm = TRUE)
+view(data)
+
+
+data$Age[is.na(data$Age)] <- median(data$Age, na.rm = TRUE)
+median(data$Age, na.rm = TRUE)
+
+
+# Replaced the missing values in numerical data with Median
+
+
+na_count_by_column <- sapply(data, function(x) sum (is.na(x)))
+na_count_by_column
+view(data)
+
+
+############### FILLING "" VALUES IN CATEGORICAL COLUMNS
+# Function to calculate mode
+get_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Identify categorical columns
+cat_columns <- sapply(data, is.character)
+
+# Loop through each categorical column
+for (col in names(data)[cat_columns]) {
+  # Calculate mode of the column
+  mode_val <- get_mode(data[[col]])
+  
+  # Replace empty strings with mode value
+  data[[col]][data[[col]] == ""] <- mode_val
+}
+
+
+########################### Since column "X.1" has unique values : ["#N/A", "#NAME?", ""], we should drop the column.
+########################### Values doesn't convey any information. 
+data_updated <- subset(data, select = -"$x.1")
+view(data)
+```
+```{r}
+#data_updated = data[, -which(names(data)== "X.1", "X")]
+data_updated = data[, !(names(data) %in% c("X.1", "X"))]
+view(data_updated)
+```
+
+Summary stats
+```{r}
+summary(data)
+summary_data <- do.call(cbind, data_updated)
+```
+
+Calculating Range, Skewness
+```{r}
+# Function to calculate range
+range_data_updated <- function(x) {
+  if(is.numeric(x)) {
+    range_val <- max(x, na.rm = TRUE) - min(x, na.rm = TRUE)
+    return(range_val)
+  } else {
+    return(NA)  # return NA for non-numeric variables
+  }
+}
+
+# Function to calculate skewness
+skewness_data_updated <- function(x) {
+  if(is.numeric(x)) {
+    skewness_val <- (3 * (mean(x, na.rm = TRUE) - median(x, na.rm = TRUE))) / sd(x, na.rm = TRUE)
+    return(skewness_val)
+  } else {
+    return(NA)  # return NA for non-numeric variables
+  }
+}
+
+# Applying functions to each variable
+result <- data.frame(
+  Variable = names(data_updated),
+  Range = sapply(data_updated, range_data_updated),
+  Skewness = sapply(data_updated, skewness_data_updated)
+)
+result
+```
+
+Check outliers and IQR
+```{r}
+# Checking for the presence of outliers
+for (col in names(data_updated)[sapply(data_updated, is.numeric)]) {
+  print(paste("Column:", col))
+  
+  # Calculate IQR
+  q1 <- quantile(data_updated[[col]], 0.25, na.rm = TRUE)
+  q3 <- quantile(data_updated[[col]], 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  print(paste("IQR:", iqr))
+  
+  # Identify outliers
+  lower_bound <- q1 - 1.5 * iqr
+  upper_bound <- q3 + 1.5 * iqr
+  outliers <- data_updated[[col]][data_updated[[col]] < lower_bound | data_updated[[col]] > upper_bound]
+  print(paste("Outliers:", length(outliers)))
+  print(outliers)
+  
+  #print("---")
+}
+```
+
+Bar plots for categorical variables
+
+```{r}
+ggplot(data_updated, aes(x = hypertension, fill = hypertension)) + geom_bar() + scale_fill_manual(values = c("yes" = "red", "no" = "green"))
+ggplot(data_updated, aes(x = Diabetes.Mellitus, fill = Diabetes.Mellitus)) + geom_bar() + scale_fill_manual(values = c("yes" = "orange", "no" = "blue"))
+# Using scale_fill_manual to specify custom colors
+ggplot(data_updated, aes(x = as.factor(Classification), fill = as.factor(Classification))) +
+  geom_bar() +
+  scale_fill_manual(values = c("ckd" = "pink", "notckd" = "skyblue")) +  # Adjusted color mapping
+  labs(
+    x = "Classification",
+    y = "Count",
+    fill = "CKD Classification",
+    title = "Bar Chart of CKD Classification"
+  )
+```
+
+Histogram for age vs classification of the disease
+
+```{r}
+ggplot(data_updated, aes(x = Age, fill = as.factor(Classification))) +
+  geom_histogram(alpha = 0.7) +
+  scale_fill_manual(values = c("ckd" = "blue", "notckd" = "green")) +
+  labs(
+    title = "Distribution of Age",
+    x = "Age",
+    y = "Count",
+    fill = "CKD Classification"
+  )
+```
+
+Histogram for serum creatinine vs classification of the disease
+
+```{r}
+ggplot(data_updated, aes(x = Serum.creatinine, fill = as.factor(Classification))) +
+  geom_histogram(alpha = 0.7) +
+  scale_fill_manual(values = c("ckd" = "brown", "notckd" = "yellow")) +
+  labs(
+    title = "Distribution of Serum.creatinine",
+    x = "Serum.creatinine",
+    y = "Count",
+    fill = "CKD Classification"
+  )
+```
+
+Age vs ckd/notckd - scatter plot
+```{r}
+ggplot(data_updated, aes(x = Age, y = as.factor(Classification), color = as.factor(Classification))) +
+  geom_point() + geom_jitter(width = 0.1, height = 0.1) + 
+  scale_color_manual(values = c("ckd" = "red", "notckd" = "blue"))
+```
+
+Box plots for age vs classification of ckd
+
+```{r}
+ggplot(data_updated, aes(x = as.factor(Classification), y = Age, color = as.factor(Classification))) +
+  geom_boxplot() + scale_color_manual(values = c("ckd" = "red", "notckd" = "blue"))
+  labs(x = "Classification", y = "Age")
+```
+
+Box plots for Serum.creatinine vs classification of ckd
+
+```{r}
+ggplot(data_updated, aes(x = as.factor(Classification), y = Serum.creatinine, color = as.factor(Classification))) +
+  geom_boxplot() + scale_color_manual(values = c("ckd" = "purple", "notckd" = "blue"))
+  labs(x = "Classification", y = "Age")
+```
+
+Pie chart showing the distribution of CKD classfication in the data set
+
+```{r}
+data_updated$classification <- as.factor(data_updated$Classification)
+ckd_counts <- table(data_updated$Classification)
+
+# Convert the table to a data frame for ggplot and calculate percentages
+ckd_counts_df <- as.data.frame(ckd_counts) %>%
+  mutate(Percentage = Freq / sum(Freq) * 100)
+
+# Rename columns for clarity
+names(ckd_counts_df) <- c("Classification", "Freq", "Percentage")
+
+# Create the pie chart with percentage labels
+ggplot(ckd_counts_df, aes(x = "", y = Freq, fill = Classification)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +  # This converts the bar chart to a pie chart
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), position = position_stack(vjust = 0.5)) +
+  labs(
+    title = "Distribution of CKD Classification",
+    x = NULL,
+    y = NULL,
+    fill = "CKD Classification"
+  ) +
+  theme_void() +  # This removes the background, gridlines, and axes
+  theme(legend.position = "right") 
+```
+Shapiro-Wilk test to check normality
+
+```{r}
+# Convert categorical variables to factor
+data_updated <- data_updated %>%
+  mutate_if(is.character, as.factor)
+
+# Convert factor variables to numeric
+data_updated <- data_updated %>%
+  mutate_if(is.factor, as.numeric)
+
+# Perform Shapiro-Wilk normality test on numeric variables
+for (col in names(data_updated)[sapply(data_updated, is.numeric)]) {
+  print(paste("Normality test for:", col))
+  print(shapiro.test(data_updated[[col]]))
+  print("---")
+}
+```
+QQ plot to check the distribution of the data
+
+```{r}
+library(car)
+
+# Loop through each numeric column in the dataset
+par(mfrow = c(2, 2)) # Adjust the layout depending on the number of numeric variables
+for (var in names(data_updated)) {
+  if (is.numeric(data_updated[[var]])) {
+    qqPlot(data_updated[[var]], main = paste("QQ Plot of", var))
+  }
+}
+```
+
+Mann Whitney U  test to check the significance for numerical variables
+```{r}
+wilcox.test(Age ~ Classification, data = data_updated)
+wilcox.test(Blood.Pressure ~ Classification, data = data_updated)
+wilcox.test(Albumin ~ Classification, data = data_updated)
+wilcox.test(Serum.creatinine ~ Classification, data = data_updated)
+wilcox.test(Hemoglobin ~ Classification, data = data_updated)
+wilcox.test(Specific.Gravity ~ Classification, data = data_updated)
+wilcox.test( Sugar~ Classification, data = data_updated)
+wilcox.test(Red.Blood.Cells ~ Classification, data = data_updated)
+wilcox.test(Pus.cells ~ Classification, data = data_updated)
+wilcox.test(Pus.cell.clumps ~ Classification, data = data_updated)
+wilcox.test(Bacteria ~ Classification, data = data_updated)
+wilcox.test(Blood.glucose.random ~ Classification, data = data_updated)
+wilcox.test(Blood.urea ~ Classification, data = data_updated)
+wilcox.test(Sodium ~ Classification, data = data_updated)
+wilcox.test(Potassium ~ Classification, data = data_updated)
+wilcox.test(Packed.cell.volume ~ Classification, data = data_updated)
+wilcox.test(White.blood.cell.count ~ Classification, data = data_updated)
+wilcox.test(Red.blood.cell.count ~ Classification, data = data_updated)
+```
+
+Spearman Rank correlation test for  assessing the association between 2 numerical variables
+
+```{r}
+spearman_result <- cor.test(data_updated$Age, data_updated$Hemoglobin, method = "spearman", use = "complete.obs")
+spearman_result
+
+```
+
+```{r}
+spearman_result <- cor.test(data_updated$Age, data_updated$hypertension, method = "spearman", use = "complete.obs")
+spearman_result
+```
+
+```{r}
+spearman_result <- cor.test(data_updated$Age, data_updated$Albumin, method = "spearman", use = "complete.obs")
+spearman_result
+```
+
+```{r}
+install.packages("reshape2")
+library(reshape2)
+```
+Correlation Heat map to check the association between 2 numerical variables
+```{r}
+# Install and load necessary packages
+if (!require(reshape2)) install.packages("reshape2")
+if (!require(ggplot2)) install.packages("ggplot2")
+library(reshape2)
+library(ggplot2)
+
+cor_matrix <- cor(data_updated[, sapply(data_updated, is.numeric)], use = "pairwise.complete.obs")
+
+# Melt the correlation matrix for ggplot2
+melted_cor_matrix <- melt(cor_matrix)
+
+# Create a heatmap with ggplot2 and add text annotations
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +  # Tiles with white borders
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 0.8) +  # Add text labels
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "", y = "", fill = "Correlation") +
+  theme(legend.key.height = unit(1, "in")) 
+```
+
+Chi square test for categorical variables
+```{r}
+library(stats)
+
+# Convert categorical variables to factors
+data_updated <- data_updated %>%
+  mutate_if(is.character, as.factor)
+
+# Perform Chi-Square tests
+for (col in c("hypertension", "Diabetes.Mellitus", "Coronary.artery.disease", "Appetite", "Pedal.edema", "Anemia")) {
+  print(paste("Chi-Square test for:", col))
+  print(chisq.test(data_updated[[col]], data_updated$classification))
+  print("---")
+}
+```
+Logistic regression model for all the parameters
+```{r}
+library(readr)
+#data <- data %>%
+  #mutate_if(is.numeric, ~if_else(is.na(.), median(., na.rm = TRUE), .)) %>%
+  #mutate_if(is.character, ~if_else(is.na(.), Mode(.), .)) # Define Mode function if not defined
+
+# Convert categorical variables to factors
+categorical_vars <- c("Red.Blood.Cells", "Pus.cells", "Pus.cell.clumps", "Bacteria", "hypertension", 
+                      "Diabetes.Mellitus", "Coronary.artery.disease", "Appetite", "Pedal.edema", "Anemia")
+data[categorical_vars] <- lapply(data[categorical_vars], as.factor)
+
+# Ensure the target variable is a factor
+data$Classification <- factor(data$Classification, levels = c("notckd", "ckd"))
+
+# Fit the logistic regression model
+# Including significant continuous and categorical variables identified from Wilcoxon and Chi-square tests
+model <- glm(Classification ~ Age + `Blood.Pressure` + Albumin + `Serum.creatinine` + Hemoglobin +
+             `Specific.Gravity` + Sugar + `Blood.glucose.random` + `Blood.urea` + Sodium + 
+             `Packed.cell.volume` + `White.blood.cell.count` + `Red.blood.cell.count` + 
+             `Red.Blood.Cells` + `Pus.cells` + `Pus.cell.clumps` + Bacteria + hypertension + 
+             `Diabetes.Mellitus` + `Coronary.artery.disease` + Appetite + `Pedal.edema` + Anemia,
+             data = data, family = binomial(link = "logit"))
+
+# Summary of the model
+summary(model)
+```
+VIF to check the multicollinearity of the fitted model
+```{r}
+# Load necessary libraries
+library(car)
+library(glmnet)
+
+# Assuming 'data' is your dataset and 'Classification' is the binary outcome variable
+# Fit a logistic regression model with all predictors
+full_model <- glm(Classification ~ Age + Blood.Pressure + Albumin + Serum.creatinine + Hemoglobin +
+                  Specific.Gravity + Sugar + Blood.glucose.random + Blood.urea +
+                  Sodium + Packed.cell.volume + White.blood.cell.count + 
+                  Red.blood.cell.count + hypertension + Diabetes.Mellitus + 
+                  Coronary.artery.disease + Appetite + Pedal.edema + Anemia, 
+                  data = data, family = binomial())
+
+# Calculate VIF for the fitted model
+vif_model <- vif(full_model)
+print(vif_model[vif_model > 5])  # Print VIF values greater than 5
+```
+Logistic regression with few parameters
+```{r}
+# Fit the logistic regression model with selected variables
+# Assuming the significant variables identified are 'Hemoglobin', 'Serum.creatinine', 'hypertension'
+final_model <- glm(Classification ~ Hemoglobin + Serum.creatinine + Specific.Gravity, 
+                   data = data, family = binomial())
+
+# Display the summary of the final model
+summary(final_model)
+```
+ROC curve and AUC values to evaluate model performance
+```{r}
+
+# Load packages
+library(caret)
+library(pROC)
+library(e1071)
+
+model <- glm(Classification ~ Hemoglobin + Serum.creatinine + hypertension,
+             family = binomial(), data = data)
+# Predict probabilities
+probabilities <- predict(model, type = "response")
+
+# Convert probabilities to binary outcomes based on a threshold of 0.5
+predicted_classes <- ifelse(probabilities > 0.5, 1, 0)
+
+# Actual classes
+actual_classes <- as.numeric(data$Classification) - 1  # Adjust if necessary based on how your factor levels are coded
+
+# Calculate confusion matrix
+conf_matrix <- confusionMatrix(as.factor(predicted_classes), as.factor(actual_classes))
+print(conf_matrix)
+
+# Compute ROC curve and AUC
+roc_result <- roc(actual_classes, probabilities)
+auc_value <- auc(roc_result)
+print(auc_value)
+
+# Plot ROC curve
+plot(roc_result, main="ROC Curve", col="#1c61b6")
+abline(a=0, b=1, col="red", lty=2)  # Diagonal line for reference
+```
+Precision, Recall, F1 Score, and Accuracy
+```{r}
+# Precision, Recall, F1 Score, and Accuracy
+precision <- conf_matrix$byClass["Pos Pred Value"]  # Precision (Positive Predictive Value)
+recall <- conf_matrix$byClass["Sensitivity"]       # Recall (True Positive Rate)
+f1_score <- 2 * (precision * recall) / (precision + recall)  # F1 Score
+accuracy <- conf_matrix$overall["Accuracy"]         # Accuracy
+
+# Print the metrics
+print(paste("Precision:", precision))
+print(paste("Recall:", recall))
+print(paste("F1 Score:", f1_score))
+print(paste("Accuracy:", accuracy))
+```
